@@ -11,7 +11,8 @@ From [config.yaml](config.yaml):
 | spaceId | `6406248027` |
 | space key | `~7120204850b617efd944b9ae686dff14ee52b5` |
 | reports folder (parent) | `6407226609` |
-| current weekly report | page `6407750046` |
+| current week hub | page `6407750046` (`legacy_monolithic: true` until split) |
+| day pages | under hub — see `weekly_report.current.days` in config |
 
 Pass `cloudId` on every Atlassian MCP call. Read tool schemas before invoking.
 
@@ -24,7 +25,7 @@ Pass `cloudId` on every Atlassian MCP call. Read tool schemas before invoking.
 | Read page | `getConfluencePage` | `contentFormat: html`, include `pageId` |
 | List children | `getConfluencePageDescendants` | `depth: 2` for task + meeting pages |
 | Search | `searchConfluenceUsingCql` | See CQL below |
-| Update report | `updateConfluencePage` | Full HTML body, required `cloudId`, `pageId`, `body` |
+| Update page | `updateConfluencePage` | Full HTML body, one day/child page per call |
 | New page | `createConfluencePage` | `spaceId`, `parentId`, `title`, `body` |
 | Auth | `mcp_auth` | When STATUS.md requires it |
 
@@ -208,7 +209,7 @@ Examples:
 <p>★ follow up on default GCP permission groups</p>
 ```
 
-Starred line → also add `★ follow up on default GCP permission groups` to that day's **Outstanding** on the weekly report.
+Starred line → also add `★ follow up on default GCP permission groups` to that day's **Outstanding** on the **day page**.
 
 ### Upcoming placeholder HTML
 
@@ -288,7 +289,9 @@ Attachment workflow: search → identify `message_id` and `attachment_id` from m
 ```
 title ~ "ALiess weekly report" AND space = "~7120204850b617efd944b9ae686dff14ee52b5" ORDER BY lastmodified DESC
 
-title ~ "Meet the team" AND ancestor = 6407750046
+ancestor = 6407750046 AND title ~ "26/07/08"
+
+title ~ "Meet the team" AND ancestor = {day_page_id}
 
 title ~ "26/07/08" AND space = "~7120204850b617efd944b9ae686dff14ee52b5"
 ```
@@ -356,10 +359,22 @@ Prepend to every `createConfluencePage` body (from `config.yaml` → `page_layou
 <div data-type="extension" data-extension-key="toc" data-extension-type="com.atlassian.confluence.macro.core" data-parameters="{&quot;outline&quot;:true,&quot;maxLevel&quot;:3}"></div>
 ```
 
-Weekly report example (new week):
+Weekly hub example (new week):
 
 ```html
 <div data-type="extension" data-extension-key="toc" ...></div>
+<h1>Week of July 6–10, 2026</h1>
+<h2>Days</h2>
+<ul>
+  <li><p><a href="{day_page_url}">26/07/06 July 6, 2026</a></p></li>
+</ul>
+```
+
+Day page example (new day):
+
+```html
+<div data-type="extension" data-extension-key="toc" ...></div>
+<p><a href="{hub_url}">← ALiess weekly report 26/07/10</a></p>
 <h1><time datetime="2026-07-06">July 6, 2026</time></h1>
 <h2>Completed</h2>
 <ul></ul>
@@ -377,11 +392,12 @@ Child page example:
 <p></p>
 ```
 
-### Roll forward Outstanding (new day)
+### Roll forward Outstanding (new day page)
 
-When adding July 10 after July 9 — copy July 9's `<ul>` under **Outstanding** into July 10's **Outstanding** (skip `<s>` items):
+When adding July 10 after July 9 — `getConfluencePage` on the **July 9 day page**, copy its `<ul>` under **Outstanding** into a new **July 10 day page** (skip `<s>` items):
 
 ```html
+<div data-type="extension" data-extension-key="toc" ...></div>
 <h1><time datetime="2026-07-10">July 10, 2026</time></h1>
 <h2>Completed</h2>
 <ul></ul>
@@ -396,16 +412,22 @@ When adding July 10 after July 9 — copy July 9's `<ul>` under **Outstanding** 
 </ul>
 ```
 
+Then add a link on the **week hub** Days list only (do not append day content to the hub).
+
 ## Page hierarchy (example week)
 
 ```
-ALiess weekly report 26/07/10 (6407750046)
-├── 26/07/08 task meet the team (6416041103)
-│   ├── Meet the team: Piotr Szwajkowski (6415877325)
-│   ├── Meet the team: Eric Ellett (6416204782)
-│   └── …
-└── Axl Daniyal gcp logging sync 26/07/08 (6419218547)
+ALiess weekly report 26/07/10 (6407750046)          ← hub
+├── 26/07/08 July 8, 2026 ({day_page_id})
+│   ├── 26/07/08 task meet the team (6416041103)
+│   │   ├── Meet the team: Piotr Szwajkowski (6415877325)
+│   │   ├── Meet the team: Eric Ellett (6416204782)
+│   │   └── …
+│   └── Axl Daniyal gcp logging sync 26/07/08 (6419218547)
+└── 26/07/09 July 9, 2026 ({day_page_id})
 ```
+
+Child pages parent to the **day page**, not the hub. Legacy children still under the hub should be linked from the matching day page until reparented in Confluence UI.
 
 ## Gmail search operators
 
@@ -426,7 +448,7 @@ from:me has:attachment newer_than:3d
 ## Upcoming placeholder checklist
 
 - [ ] `get_events` for current work week (future events only)
-- [ ] `getConfluencePageDescendants` — no duplicate child page
+- [ ] `getConfluencePageDescendants` on the **day page** — no duplicate child page
 - [ ] Created placeholder with **Scheduled**, **Participants**, **Location**, empty **Notes**
 - [ ] Linked from correct day's **Outstanding**
 - [ ] Did not overwrite pages that already have note content
@@ -438,7 +460,7 @@ from:me has:attachment newer_than:3d
 - [ ] Polled until `status: completed` (extra `code` calls if needed)
 - [ ] Parsed tasks with completion dates and categories
 - [ ] Moved matching Outstanding items to Completed with `<s>`
-- [ ] Deduped task titles already on the report
+- [ ] Deduped task titles already on the target day page
 - [ ] No PII in telemetry intent strings
 
 ## GitHub PR sync checklist
@@ -446,7 +468,7 @@ from:me has:attachment newer_than:3d
 - [ ] `get_me` → substituted `{author}` in search query
 - [ ] `search_pull_requests` since week_start (or target day)
 - [ ] Per PR: `get` + `get_commits` (+ `get_files` if needed)
-- [ ] Extracted Jira keys; deduped PR lines on weekly report
+- [ ] Extracted Jira keys; deduped PR lines on day page(s)
 - [ ] Added Completed lines with PR + Jira inline links
 - [ ] `addCommentToJiraIssue` on linked tickets (deduped by PR URL in comments)
 - [ ] Did not transition/close tickets without explicit user request
@@ -456,7 +478,7 @@ from:me has:attachment newer_than:3d
 
 - [ ] Queried assignee + reporter issues since week_start (or target day)
 - [ ] Extracted user comments in window as work-done summaries
-- [ ] Deduped issue keys already on the weekly report
+- [ ] Deduped issue keys already on the target day page(s)
 - [ ] Added Completed lines with inline Jira card links
 - [ ] Brag doc reminders issued for Done/Resolved initiatives in window
 - [ ] Did not edit Brag Doc without explicit user request
@@ -466,20 +488,22 @@ from:me has:attachment newer_than:3d
 - [ ] Transcription added to Confluence (not image-only)
 - [ ] Starred lines (★ / *) in handwriting or meeting **Notes** routed to **Outstanding**
 - [ ] Uncertain words marked or noted
-- [ ] Section placement matches user intent (daily vs child page)
+- [ ] Section placement matches user intent (day page vs child page)
 - [ ] Links to Jira/Confluence/Docs/Calendar added where references exist
 - [ ] Child page created and linked when content exceeds ~2 short paragraphs
 
 ## updateConfluencePage call shape
 
+Update **one day page** at a time (not the hub with all days):
+
 ```json
 {
   "cloudId": "969226a5-2105-49eb-a9f7-e3852660973e",
-  "pageId": "6407750046",
+  "pageId": "{day_page_id}",
   "contentFormat": "html",
   "body": "<full html from getConfluencePage with edits>",
-  "versionMessage": "Add July 9 daily section"
+  "versionMessage": "Add July 9 completed items"
 }
 ```
 
-Fetch → edit → write the entire body in one call.
+Fetch → edit → write the entire body in one call. If the payload is too large, confirm you are editing a day page, not a legacy monolithic hub.

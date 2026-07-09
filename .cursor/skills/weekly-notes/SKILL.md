@@ -1,10 +1,11 @@
 ---
 name: weekly-notes
 description: >-
-  Creates and maintains weekly work reports in Confluence (Atlassian), including
-  daily sections, completed/outstanding task lists, child pages for meetings and
-  tasks, Google Calendar context for past and upcoming meetings, Rippling completed-task
-  sync, Jira ticket sync, GitHub PR sync with linked work summaries and Jira ticket comments, brag-doc
+  Creates and maintains weekly work reports in Confluence (Atlassian) as a
+  lightweight week hub plus one page per calendar day, with completed/outstanding
+  task lists and child pages for meetings and tasks under each day, Google Calendar
+  context for past and upcoming meetings, Rippling completed-task sync, Jira ticket
+  sync, GitHub PR sync with linked work summaries and Jira ticket comments, brag-doc
   reminders on resolved initiatives, handwritten-note OCR from Gmail/Drive/local
   images, and Google Drive doc access. Use when updating weekly notes, syncing
   calendar meetings, creating meeting placeholders, syncing Rippling or Jira or
@@ -13,60 +14,98 @@ description: >-
 
 # Weekly Notes (Confluence)
 
-Maintain **ALiess weekly report** pages in the Rippling personal Confluence space. All Atlassian, GitHub, Gmail, Google Calendar, Google Drive, and Rippling access goes through MCP.
+Maintain **ALiess weekly report** week hubs and **one Confluence page per calendar day** in the Rippling personal space. All Atlassian, GitHub, Gmail, Google Calendar, Google Drive, and Rippling access goes through MCP.
 
 ## Quick start
 
 ```
 Task Progress:
-- [ ] Read config.yaml (current page_id, cloud_id)
+- [ ] Read config.yaml (hub_page_id, days map, cloud_id)
+- [ ] Resolve target day page for the date being edited (see below)
 - [ ] Authenticate MCP servers if needed (mcp_auth)
-- [ ] getConfluencePage → fetch full HTML body + version
+- [ ] getConfluencePage → fetch that day page's HTML body + version only
 - [ ] Plan edits (preserve data-local-id on existing nodes)
-- [ ] updateConfluencePage or createConfluencePage
+- [ ] updateConfluencePage (day page) or createConfluencePage (day or child)
 - [ ] Verify with getConfluencePage or share webUrl
 ```
 
 Load [config.yaml](config.yaml) before every session. For HTML patterns and MCP tool args, see [reference.md](reference.md).
 
-## Resolve the active weekly report
+**MCP payload limit**: never fetch or update the week hub with full daily content. One `getConfluencePage` / `updateConfluencePage` per **day page** (or child page). Hub edits are limited to the **Days** index list.
 
-1. Use `config.yaml` → `weekly_report.current.page_id`.
-2. If missing or user says "new week", run **New week workflow** below.
-3. Optionally confirm with CQL: `title ~ "ALiess weekly report" AND space = "~7120204850b617efd944b9ae686dff14ee52b5" ORDER BY lastmodified DESC`.
+## Page hierarchy (one page per day)
 
-## Daily section workflow
-
-Each calendar day is an `<h1>` with a Confluence date:
-
-```html
-<h1><time datetime="2026-07-09">July 9, 2026</time></h1>
+```
+Reports folder (reports_parent_folder_id)
+└── ALiess weekly report 26/07/10          ← week hub (lightweight index)
+    ├── 26/07/06 July 6, 2026              ← day page (Completed / Outstanding)
+    ├── 26/07/07 July 7, 2026
+    └── 26/07/08 July 8, 2026
+        ├── 26/07/08 task meet the team    ← child (task group)
+        │   └── Meet the team: Piotr …     ← child (1:1)
+        └── Axl Daniyal gcp logging sync 26/07/08
 ```
 
-After the first onboarding-style days, prefer this structure under each day:
+| Page type | Parent | Body contains |
+|-----------|--------|---------------|
+| **Week hub** | reports folder | TOC, week metadata, **Days** links to day pages, optional Brag Doc link — **no** Completed/Outstanding |
+| **Day page** | week hub | TOC, date heading, narrative, **Completed**, **Outstanding** |
+| **Child page** | **day page** | meeting notes, task threads, sync write-ups |
+
+Child pages for a given calendar day always use `parentId` = that day's `page_id`, not the hub.
+
+## Resolve the active week and day
+
+1. **Week hub**: `config.yaml` → `weekly_report.current.hub_page_id` (alias `page_id`).
+2. If missing or user says "new week", run **New week workflow** below.
+3. **Day page** for date `YYYY-MM-DD`:
+   - `weekly_report.current.days["YYYY-MM-DD"].page_id` if present in config, else
+   - `getConfluencePageDescendants` on the hub and match title prefix `{YY/MM/DD}`, or
+   - CQL: `ancestor = {hub_page_id} AND title ~ "26/07/09"` (use `child_date_suffix` for that date).
+4. If no day page exists, run **Add a new day** below.
+5. If `legacy_monolithic: true` and the hub still holds inline `<h1>` day sections, run **Migrate legacy monolithic week** before routine edits.
+
+Optionally confirm the hub with CQL: `title ~ "ALiess weekly report" AND space = "~7120204850b617efd944b9ae686dff14ee52b5" ORDER BY lastmodified DESC`.
+
+## Daily page workflow
+
+Each calendar day is its **own Confluence page** (title from `daily_page.title_template`, e.g. `26/07/09 July 9, 2026`).
+
+Day page body structure:
+
+```html
+<div data-type="extension" data-extension-key="toc" ...></div>
+<p><a href="{hub_web_url}">← Week of …</a></p>
+<h1><time datetime="2026-07-09">July 9, 2026</time></h1>
+<h2>Completed</h2>
+<ul></ul>
+<h2>Outstanding</h2>
+<ul></ul>
+```
 
 | Section | Heading | Content |
 |---------|---------|---------|
-| Narrative | (optional `<p>`) | Short context at top of day |
+| Narrative | (optional `<p>` after `<h1>`) | Short context for the day |
 | Done | `<h2>Completed</h2>` | Bullet list; strike through with `<s>` when done |
 | Open | `<h2>Outstanding</h2>` | Nested `<ul>` for subtasks |
 
 ### Add a new day (required)
 
-When adding a new daily `<h1>`, **always roll forward Outstanding** from the **immediately previous day**:
+When creating a day page, **always roll forward Outstanding** from the **immediately previous calendar day's page**:
 
-1. `getConfluencePage` → find the prior day's `<h2>Outstanding</h2>` and its `<ul>` (including nested sub-items).
-2. **Copy** that list into the new day's **Outstanding** — full tree, same wording and links.
-3. **Omit** any line that is struck through with `<s>` (treat as done).
-4. Leave the **previous day's** Outstanding unchanged (historical snapshot).
-5. Append the new `<h1>` after the last day; do not reorder earlier days.
-6. Add new tasks below the copied list; do not duplicate items already copied.
+1. Resolve the prior day page (sibling under the same hub).
+2. `getConfluencePage` on the **prior day page only** → find `<h2>Outstanding</h2>` and its `<ul>` (including nested sub-items).
+3. `createConfluencePage` with `parentId` = hub, title from `daily_page.title_template`, body = TOC + date `<h1>` + empty **Completed** + copied **Outstanding** (omit `<s>` items).
+4. **Copy** the prior Outstanding list into the new day — full tree, same wording and links.
+5. Leave the **previous day page** unchanged (historical snapshot).
+6. Update the **hub** only: add a link in the **Days** list (small payload).
+7. Record `weekly_report.current.days["YYYY-MM-DD"]` in `config.yaml` (`page_id`, `title`, `web_url`).
 
 Skip roll-forward only when the user explicitly says prior Outstanding is cleared or not applicable.
 
-**Update tasks**: edit in place on the correct day. Move items from Outstanding → Completed (with `<s>` on completed sub-items). Link Jira with inline cards: `<a href="https://rippling.atlassian.net/browse/KEY-123" data-card-appearance="inline">...</a>`. Optionally run **Rippling task sync**, **Jira ticket sync**, or **GitHub PR sync** to backfill Completed.
+**Update tasks**: `getConfluencePage` + `updateConfluencePage` on the **target day page** only. Move items from Outstanding → Completed (with `<s>` on completed sub-items). Link Jira with inline cards: `<a href="https://rippling.atlassian.net/browse/KEY-123" data-card-appearance="inline">...</a>`. Optionally run **Rippling task sync**, **Jira ticket sync**, or **GitHub PR sync** to backfill Completed.
 
-**Link child pages** from the daily list: `<a href="https://rippling.atlassian.net/wiki/spaces/.../pages/{id}">Title</a>`.
+**Link child pages** from the day's Completed or Outstanding: `<a href="https://rippling.atlassian.net/wiki/spaces/.../pages/{id}">Title</a>`.
 
 ## Starred lines = tasks
 
@@ -74,8 +113,8 @@ A **star** (★, `*`, or a clear star doodle) beside a line marks an **open task
 
 | Where the star appears | What to do |
 |------------------------|------------|
-| Weekly report / daily scratch pad | Add line to that day's **Outstanding** |
-| Meeting child page **Notes** | Keep starred line in **Notes** *and* add the task to the day's **Outstanding** on the weekly report |
+| Day page scratch / narrative | Add line to that day's **Outstanding** |
+| Meeting child page **Notes** | Keep starred line in **Notes** *and* add the task to the day's **Outstanding** on the day page |
 | Handwritten page (OCR) | Same as above; route starred lines to **Outstanding** |
 
 Rules:
@@ -92,11 +131,11 @@ Rules:
 
 | Situation | Parent | Title pattern |
 |-----------|--------|---------------|
-| Multi-person task thread (e.g. meet-the-team) | Weekly report | `{YY/MM/DD} task {topic}` |
+| Multi-person task thread (e.g. meet-the-team) | **Day page** for that date | `{YY/MM/DD} task {topic}` |
 | Individual intro / 1:1 | Task group page | `Meet the team: {Name}` |
-| Ad-hoc meeting or deep dive | Weekly report | `{Who} {topic} {YY/MM/DD}` |
+| Ad-hoc meeting or deep dive | **Day page** for that date | `{Who} {topic} {YY/MM/DD}` |
 
-Use `getConfluencePageDescendants` to avoid duplicates. Link new pages from the relevant **Completed** or **Outstanding** line on the daily section.
+Use `getConfluencePageDescendants` on the **day page** (not the hub) to avoid duplicates. Link new pages from the relevant **Completed** or **Outstanding** line on that day page.
 
 ### Meet-the-team template
 
@@ -117,7 +156,7 @@ When a calendar match exists, prepend **Meeting details** (see Calendar workflow
 
 Short bullets, relevant doc links (Confluence cards, Google Docs, external URLs), optional screenshot. Example: `Axl Daniyal gcp logging sync 26/07/08`. Starred bullets in **Notes** → also add to daily **Outstanding**.
 
-**Create**: `createConfluencePage` with `parentId` = weekly report or task-group page, `spaceId` from config, `contentFormat: html`. Start the body with a **table of contents** (see Page layout below).
+**Create**: `createConfluencePage` with `parentId` = **day page** (or task-group page), `spaceId` from config, `contentFormat: html`. Start the body with a **table of contents** (see Page layout below).
 
 ## Google Calendar workflow
 
@@ -132,7 +171,7 @@ Use calendar to (a) enrich past meeting notes with metadata, and (b) create **pl
 | Handwritten note has a **date + title** | `get_events` that day → fuzzy-match title → enrich note |
 | Meeting child page exists, call already happened | Match by title + date → add participants, duration, location |
 | User asks to prep upcoming meetings | `get_events` for the work week → create placeholder pages |
-| New day section / weekly setup | Optionally seed **Outstanding** with linked upcoming meetings |
+| New day page / weekly setup | Optionally seed **Outstanding** with linked upcoming meetings |
 
 ### Fetch events
 
@@ -194,9 +233,10 @@ Use one or two **Location** lines (video + physical) as applicable. Omit empty f
 
 For each **future** event in the current work week that lacks a child page:
 
-1. `getConfluencePageDescendants` on the weekly report — dedupe by similar title + date.
-2. `createConfluencePage` with placeholder body (no notes yet).
-3. Link from that day's **Outstanding** on the weekly report.
+1. Resolve that event's **day page**; create the day page first if missing.
+2. `getConfluencePageDescendants` on the **day page** — dedupe by similar title + date.
+3. `createConfluencePage` with `parentId` = day page, placeholder body (no notes yet).
+4. Link from that day's **Outstanding** on the **day page**.
 
 **Title** — pick the best fit:
 
@@ -226,7 +266,7 @@ After OCR, if the transcription includes a date and meeting title:
 
 1. Run calendar match for that date/title.
 2. If matched → create or update child page with **Meeting details** + transcribed **Notes**.
-3. If unmatched → add transcription to daily section or child page without fabricated metadata.
+3. If unmatched → add transcription to the **day page** or a child page without fabricated metadata.
 
 ## Handwritten notes / image OCR workflow
 
@@ -247,9 +287,9 @@ Sources (in order of user hint):
 
 | User request | Action |
 |--------------|--------|
-| Short note | Add transcribed text under today's `<h1>` on the weekly report |
-| Starred task line | Add to **Outstanding** for that day (see **Starred lines = tasks**) |
-| Long or multi-topic | Create child page; link from daily section |
+| Short note | Add transcribed text to today's **day page** (narrative or Completed) |
+| Starred task line | Add to **Outstanding** on that day's page (see **Starred lines = tasks**) |
+| Long or multi-topic | Create child page under the day page; link from Completed/Outstanding |
 | User wants image preserved | Add transcription under a `## Transcription` or `## Notes` heading; embed image if possible (see below) |
 
 **Image embed limitation**: Atlassian MCP has no attachment-upload tool. Prefer full transcription in the body. If the user requires the image on the page, either (a) they upload via Confluence UI while you add the text, or (b) store in Google Drive via MCP and link the Doc/Drive URL in the page. Existing pages use `<figure data-type="media-single">` with server-assigned `data-id` — do not invent media IDs.
@@ -257,28 +297,64 @@ Sources (in order of user hint):
 ## New week workflow
 
 1. Compute `week_label_date` as `YY/MM/DD` of that week's Friday (see config).
-2. `createConfluencePage`:
+2. `createConfluencePage` — **week hub**:
    - `title`: `ALiess weekly report {week_label_date}`
    - `parentId`: `reports_parent_folder_id` from config
    - `spaceId`: from config
-   - `body`: **TOC macro** + first day `<h1>` + empty Completed/Outstanding or user's opening notes
-3. Update `config.yaml` → `weekly_report.current` with new `page_id`, `title`, dates, `web_url`.
-4. Leave prior week's page unchanged (historical record).
+   - `body`: TOC macro + week heading + empty **Days** list + optional Brag Doc link
+3. `createConfluencePage` — **first day page** with `parentId` = new hub; TOC + first day `<h1>` + Completed/Outstanding (or user's opening notes).
+4. Update hub **Days** list with a link to the first day page.
+5. Update `config.yaml` → `weekly_report.current` with `hub_page_id`, `title`, dates, `web_url`, `legacy_monolithic: false`, and `days` map entry for the first day.
+6. Leave prior week's hub and day pages unchanged (historical record).
+
+**Hub body template**:
+
+```html
+<div data-type="extension" data-extension-key="toc" ...></div>
+<h1>Week of July 6–10, 2026</h1>
+<p><a href="{brag_doc_url}">Brag Doc</a></p>
+<h2>Days</h2>
+<ul>
+  <li><p><a href="{day_page_url}">26/07/06 July 6, 2026</a></p></li>
+</ul>
+```
+
+## Migrate legacy monolithic week
+
+Use when `legacy_monolithic: true`, the hub body contains multiple `<h1>` day sections, or `updateConfluencePage` fails due to body size.
+
+```
+Task Progress:
+- [ ] getConfluencePage (hub) — full HTML
+- [ ] Split body at each <h1><time datetime="YYYY-MM-DD">...</time></h1>
+- [ ] For each day: createConfluencePage (parentId = hub) with that section's content
+- [ ] Record each day in config.yaml → weekly_report.current.days
+- [ ] Replace hub body with lightweight index (TOC + Days links only)
+- [ ] Set legacy_monolithic: false
+- [ ] Link existing hub children from the matching day page (reparent in Confluence UI if needed)
+```
+
+1. For each `<h1>` day block on the monolithic hub, `createConfluencePage` with `parentId` = hub, title from `daily_page.title_template`, body = TOC + that day's HTML (Completed, Outstanding, narrative).
+2. Replace the hub body with the **hub body template** (Days list links to new day pages). Do not leave inline day sections on the hub.
+3. Populate `weekly_report.current.days` with each new `page_id`.
+4. **Existing child pages** still parented to the hub: match by `{date_suffix}` in the title and add links from the correct day page. The Atlassian MCP has no reparent tool — drag pages under the day page in the Confluence UI when the user wants the tree cleaned up.
+5. After migration, all routine edits target **day pages** only.
 
 ## Rippling task sync workflow
 
-Pull **completed Rippling tasks** (onboarding checklist, IT provisioning, HR forms, trainings, action items) into the weekly report **Completed** section. MCP server: `user-rippling-mcp` via the `code` tool and `codemode.*` sandbox.
+Pull **completed Rippling tasks** (onboarding checklist, IT provisioning, HR forms, trainings, action items) into the matching **day page** **Completed** section. MCP server: `user-rippling-mcp` via the `code` tool and `codemode.*` sandbox.
 
 ```
 Task Progress:
 - [ ] Read config.yaml (rippling.completed_tasks_prompt, week_start)
+- [ ] Resolve day page(s) for the sync window
 - [ ] code → codemode.lookup_me (confirm signed-in worker)
 - [ ] code → codemode.ask_ai (completed tasks since week_start)
 - [ ] Poll ask_ai across code calls if status is "running"
 - [ ] Parse task table: title, completion date, category, rippling_url
 - [ ] Match existing Outstanding lines → move to Completed with <s>
-- [ ] Dedupe by task title already on report
-- [ ] updateConfluencePage
+- [ ] Dedupe by task title already on the target day page
+- [ ] updateConfluencePage (one day page per call)
 ```
 
 ### Query completed tasks
@@ -323,7 +399,7 @@ Include tasks from categories in `rippling.task_categories`: onboarding, IT setu
 <li><p><s>AI@ Rippling training</s> — <a href="https://app.rippling.com/...">Rippling</a></p></li>
 ```
 
-- Place on the **completion date** from Rippling (correct daily `<h1>` section).
+- Place on the **completion date** from Rippling (correct **day page**).
 - If the task already appears in **Outstanding**, strike through and move to **Completed** instead of duplicating.
 - Link `rippling_url` from the ask_ai response when provided; otherwise link `rippling.profile_url` or omit.
 
@@ -333,19 +409,20 @@ When user asks, run a second `ask_ai` query for **incomplete** onboarding/IT/HR 
 
 ## Jira ticket sync workflow
 
-Pull the user's Jira activity for the current week (or a specific day) and add **work done** to the weekly report with **inline ticket links**. Run on request or at the end of a daily-notes update when the user wants Jira synced.
+Pull the user's Jira activity for the current week (or a specific day) and add **work done** to the matching **day page** with **inline ticket links**. Run on request or at the end of a daily-notes update when the user wants Jira synced.
 
 ```
 Task Progress:
 - [ ] Read config.yaml (jira JQL, brag_doc_issue_types, week_start)
+- [ ] Resolve day page(s) for the sync window
 - [ ] atlassianUserInfo → confirm current user
 - [ ] searchJiraIssuesUsingJql (assignee + reporter queries)
 - [ ] getJiraIssue per candidate (fields: summary, status, comment, updated, resolution, issuetype)
 - [ ] Extract user-authored comments in date range → work-done bullets
-- [ ] Dedupe against issue keys already on the weekly report
-- [ ] Append to today's Completed (or correct day) with Jira inline cards
+- [ ] Dedupe against issue keys already on the target day page(s)
+- [ ] Append to correct day Completed with Jira inline cards
 - [ ] Flag newly Done/Resolved initiatives → brag-doc reminder (below)
-- [ ] updateConfluencePage
+- [ ] updateConfluencePage (one day page per call)
 ```
 
 ### JQL and scope
@@ -399,19 +476,20 @@ Use `get_drive_file_content` on `google_drive.brag_doc.file_id` only when drafti
 
 ## GitHub PR sync workflow
 
-Pull **your** pull requests updated in the sync window, summarize work completed, add lines to the weekly report, and **comment on linked Jira tickets**. MCP server: `user-github`.
+Pull **your** pull requests updated in the sync window, summarize work completed, add lines to the matching **day page(s)**, and **comment on linked Jira tickets**. MCP server: `user-github`.
 
 ```
 Task Progress:
 - [ ] Read config.yaml (github search templates, week_start)
+- [ ] Resolve day page(s) for the sync window
 - [ ] get_me → GitHub login
 - [ ] search_pull_requests (author + updated since)
 - [ ] pull_request_read (get, get_commits, get_files) per PR
 - [ ] Extract Jira keys from title, body, branch, commits
-- [ ] Summarize work done → Completed on matching day
+- [ ] Summarize work done → Completed on matching day page
 - [ ] addCommentToJiraIssue on each linked ticket (dedupe)
 - [ ] Merged PR + resolved Jira → brag-doc reminder if applicable
-- [ ] updateConfluencePage
+- [ ] updateConfluencePage (one day page per call)
 ```
 
 ### Which PRs to include
@@ -431,7 +509,7 @@ For each PR, summarize from (priority order):
 3. **Commits** in window — `pull_request_read` method `get_commits`
 4. **Files changed** — highlight meaningful paths via `get_files` when summary is thin
 
-Map each PR to the **day it was last updated** (or merged date) for the correct daily section.
+Map each PR to the **day it was last updated** (or merged date) for the correct **day page**.
 
 ### Note format
 
@@ -439,9 +517,9 @@ Map each PR to the **day it was last updated** (or merged date) for the correct 
 <li><p>{summary} (<code>{repo}</code> <a href="{pr_html_url}">#{number}</a>) — <a href="https://rippling.atlassian.net/browse/{KEY}" data-card-appearance="inline">https://rippling.atlassian.net/browse/{KEY}</a></p></li>
 ```
 
-When no Jira key is found, omit the ticket link and keep the PR link. Dedupe by PR URL or `#number` already on the report.
+When no Jira key is found, omit the ticket link and keep the PR link. Dedupe by PR URL or `#number` already on the day page.
 
-Long PRs → child page `{repo}#{number} {title}` with body excerpt + file list; link from Completed.
+Long PRs → child page `{repo}#{number} {title}` under the matching day page with body excerpt + file list; link from Completed.
 
 ### Jira ticket updates
 
@@ -467,7 +545,7 @@ When a PR is **merged** in the sync window and links to a Jira issue whose type 
 
 ## Jira linking (manual)
 
-- Reference tickets inline on the weekly report or child pages.
+- Reference tickets inline on **day pages** or child pages.
 - Use `getJiraIssue` / `searchJiraIssuesUsingJql` for summary and status when the user wants context.
 - Create tickets only when explicitly asked (`createJiraIssue`).
 
@@ -475,19 +553,23 @@ When a PR is **merged** in the sync window and links to a Jira issue whose type 
 
 - **Always** `getConfluencePage` with `contentFormat: html` before `updateConfluencePage`.
 - Pass the **full** body back; partial patches are not supported.
+- **One page per write**: fetch and update a single **day page** or **child page** — never the hub plus all days in one call.
 - Preserve all `data-local-id` values from the fetched HTML.
 - Set `versionMessage` to a short description of the edit.
 - On validation errors, fix HTML nesting per tool error text and retry.
+- If `updateConfluencePage` fails with a size/payload error, stop editing the hub — run **Migrate legacy monolithic week** or confirm you are on a day page.
 
 ### Page layout: table of contents
 
 Every **new** Confluence page (`createConfluencePage`) must begin with a **table of contents** at the top, before other content.
 
-**Weekly report** — TOC lists day sections (`<h1>`) and updates as days are added:
+**Week hub** — TOC indexes **Days** and other `<h2>` sections only (no inline daily Completed/Outstanding):
 
 ```html
 <div data-type="extension" data-extension-key="toc" data-extension-type="com.atlassian.confluence.macro.core" data-parameters="{&quot;outline&quot;:true,&quot;maxLevel&quot;:3}"></div>
 ```
+
+**Day pages** — TOC indexes the date `<h1>`, **Completed**, **Outstanding**, and any `<h2>` sections on that page.
 
 **Child pages** (meetings, task groups, sync notes) — same TOC macro at top; it indexes **Meeting details**, **Notes**, and other `<h2>` sections.
 
@@ -496,11 +578,12 @@ If the TOC macro is rejected by Confluence HTML validation, use a manual fallbac
 ```html
 <h2>Contents</h2>
 <ul>
-  <li>July 9, 2026</li>
+  <li>Completed</li>
+  <li>Outstanding</li>
 </ul>
 ```
 
-On **existing** pages missing a TOC, add the macro (or manual list) at the top on the next edit. When adding a new day to the weekly report, ensure the TOC block remains the first element in the body.
+On **existing** pages missing a TOC, add the macro (or manual list) at the top on the next edit.
 
 ## Google Drive & Brag Doc
 
@@ -513,7 +596,7 @@ MCP server: `user-google-drive`. Authenticate with `mcp_auth` if needed.
 | Download image/PDF | `get_drive_file_download_url` |
 | Draft brag entry (when asked) | `update_drive_file` with `content` — **only after user confirms** |
 
-Brag Doc constants are in `config.yaml` → `google_drive.brag_doc`. The weekly report already links it from day-one notes; preserve that link when editing early sections.
+Brag Doc constants are in `config.yaml` → `google_drive.brag_doc`. Link it from the week hub or first day page; preserve existing links when editing.
 
 **Brag doc workflow** (when user asks to add an entry):
 

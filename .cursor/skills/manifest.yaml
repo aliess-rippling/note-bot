@@ -29,18 +29,19 @@ loops:
     reads:
       - weekly-notes/SKILL.md
       - weekly-notes/config.yaml
-    workflow: daily-section
+    workflow: daily-page
 
-  new-day-section:
+  new-day-page:
     skill: weekly-notes
     trigger_phrases:
       - new day
       - add section for
       - today's section
+      - new day page
     reads:
       - weekly-notes/SKILL.md
       - weekly-notes/reference.md
-    workflow: new-day-section
+    workflow: new-day-page
 
   meeting-notes:
     skill: weekly-notes
@@ -80,6 +81,20 @@ loops:
       - weekly-notes/SKILL.md
       - weekly-notes/config.yaml
     workflow: new-week
+
+  migrate-legacy-week:
+    skill: weekly-notes
+    trigger_phrases:
+      - split week page
+      - migrate weekly report
+      - page too large
+      - confluence payload
+      - one page per day
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/reference.md
+      - weekly-notes/config.yaml
+    workflow: migrate-legacy-monolithic-week
 
   jira-context:
     skill: weekly-notes

@@ -25,10 +25,11 @@ Authenticate with `mcp_auth` when `STATUS.md` says the server needs it. Always r
 
 | User intent | Skill | Config |
 |-------------|-------|--------|
-| Update today's notes, add a day section, log tasks | `weekly-notes` | `config.yaml` |
+| Update today's notes, add a day page, log tasks | `weekly-notes` | `config.yaml` |
 | Meeting notes, 1:1 prep, meet-the-team pages | `weekly-notes` → child-page workflow | `config.yaml` |
 | Handwritten note photo → text in Confluence | `weekly-notes` → image/OCR workflow | `config.yaml` |
-| New week / new weekly report page | `weekly-notes` → new-week workflow | `config.yaml` |
+| New week / new weekly report hub | `weekly-notes` → new-week workflow | `config.yaml` |
+| Migrate oversized legacy week page | `weekly-notes` → migrate legacy monolithic week | `config.yaml` |
 | Jira ticket context for a note | `weekly-notes` → Jira linking | `config.yaml` |
 | Sync Jira ticket activity into daily notes | `weekly-notes` → Jira ticket sync | `config.yaml` |
 | Sync GitHub PRs into daily notes + Jira comments | `weekly-notes` → GitHub PR sync | `config.yaml` |
@@ -42,10 +43,12 @@ Future skills extend [`.cursor/skills/manifest.yaml`](.cursor/skills/manifest.ya
 ## Conventions
 
 - **Fetch before write**: always `getConfluencePage` (HTML) and note `version.number` before `updateConfluencePage`.
+- **One page per write**: update a single **day page** or child page — never the week hub with all days (avoids MCP payload limits).
 - **Preserve structure**: keep existing `data-local-id` attributes when editing fetched HTML.
 - **Table of contents**: every new Confluence page starts with a TOC at the top; add to legacy pages on next edit.
-- **New day**: roll forward the previous day's **Outstanding** list (exclude struck-through items).
-- **Child pages** for long meeting or task threads; keep the weekly report scannable with links.
+- **Page hierarchy**: week hub (index) → day pages (Completed/Outstanding) → child pages (meetings/tasks under the day).
+- **New day**: create a day page under the hub; roll forward the previous day page's **Outstanding** (exclude struck-through items).
+- **Child pages** for long meeting or task threads; parent = **day page**, not the hub.
 - **Transcribe handwriting**: OCR text is required in the page body even when the image is also embedded.
 - **Jira sync**: pull assignee/reporter ticket activity into Completed with inline links; remind about Brag Doc when initiatives hit Done/Resolved.
 - **GitHub PR sync**: pull your PRs into Completed, link PRs and Jira keys, comment on associated tickets when `github.comment_on_linked_tickets` is true.

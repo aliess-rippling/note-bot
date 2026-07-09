@@ -1,4 +1,4 @@
-# Weekly notes site configuration — update when starting a new weekly report page.
+# Weekly notes site configuration — update when starting a new week hub page.
 
 atlassian:
   cloud_id: "969226a5-2105-49eb-a9f7-e3852660973e"
@@ -8,18 +8,34 @@ atlassian:
   reports_parent_folder_id: "6407226609"
 
 weekly_report:
-  # Active report — update page_id and title when a new week starts.
+  # Active week — update hub_page_id and title when a new week starts.
   current:
-    page_id: "6407750046"
+    hub_page_id: "6407750046"   # week index (lightweight; no daily content)
+    page_id: "6407750046"       # alias for hub_page_id (back-compat)
     title: "ALiess weekly report 26/07/10"
-    week_start: "2026-07-06"   # Monday
+    week_start: "2026-07-06"    # Monday
     week_label_date: "26/07/10" # YY/MM/DD used in title (Friday of work week)
     web_url: "https://rippling.atlassian.net/wiki/spaces/~7120204850b617efd944b9ae686dff14ee52b5/pages/6407750046"
+    # Set false after splitting a legacy single-page week into day pages
+    legacy_monolithic: true
+    # One Confluence page per calendar day — populate as day pages are created
+    days: {}
+    # Example after migration:
+    # days:
+    #   "2026-07-08":
+    #     page_id: "6412345678"
+    #     title: "26/07/08 July 8, 2026"
+    #     web_url: "https://rippling.atlassian.net/wiki/spaces/.../pages/6412345678"
 
   naming:
     title_template: "ALiess weekly report {week_label_date}"
     week_label_rule: "YY/MM/DD of the Friday ending the work week"
     child_date_suffix: "YY/MM/DD for the calendar day (e.g. 26/07/08)"
+
+daily_page:
+  title_template: "{date_suffix} {month_day_year}"
+  # e.g. "26/07/08 July 8, 2026"
+  parent: hub   # createConfluencePage parentId = weekly_report.current.hub_page_id
 
 handwritten_notes:
   local_image_dirs:
