@@ -1,0 +1,71 @@
+# Weekly notes site configuration — update when starting a new weekly report page.
+
+atlassian:
+  cloud_id: "969226a5-2105-49eb-a9f7-e3852660973e"
+  site_url: "https://rippling.atlassian.net"
+  personal_space_key: "~7120204850b617efd944b9ae686dff14ee52b5"
+  space_id: "6406248027"
+  reports_parent_folder_id: "6407226609"
+
+weekly_report:
+  # Active report — update page_id and title when a new week starts.
+  current:
+    page_id: "6407750046"
+    title: "ALiess weekly report 26/07/10"
+    week_start: "2026-07-06"   # Monday
+    week_label_date: "26/07/10" # YY/MM/DD used in title (Friday of work week)
+    web_url: "https://rippling.atlassian.net/wiki/spaces/~7120204850b617efd944b9ae686dff14ee52b5/pages/6407750046"
+
+  naming:
+    title_template: "ALiess weekly report {week_label_date}"
+    week_label_rule: "YY/MM/DD of the Friday ending the work week"
+    child_date_suffix: "YY/MM/DD for the calendar day (e.g. 26/07/08)"
+
+handwritten_notes:
+  local_image_dirs:
+    - "~/Pictures/weekly-notes"
+    - "~/Downloads"
+  gmail_search_hints:
+    - "has:attachment filename:jpg OR filename:jpeg OR filename:png"
+    - "subject:notes OR subject:weekly"
+
+child_pages:
+  task_group_title_template: "{date_suffix} task {topic}"
+  meeting_title_template: "Meet the team: {person_name}"
+  sync_meeting_title_template: "{participants} {topic} {date_suffix}"
+
+jira:
+  user_email: "a.liess@rippling.com"
+  # JQL: {since_date} = weekly_report.current.week_start or start of day being synced
+  jql_my_updated_issues: 'assignee = currentUser() AND updated >= "{since_date}" ORDER BY updated DESC'
+  jql_my_reported_issues: 'reporter = currentUser() AND updated >= "{since_date}" ORDER BY updated DESC'
+  max_results: 50
+  # Issue types that trigger a brag-doc reminder when status becomes Done/Resolved
+  brag_doc_issue_types:
+    - Epic
+    - Initiative
+    - Story
+    - Task
+  brag_doc_status_names:
+    - Done
+    - Resolved
+    - Closed
+
+google_drive:
+  brag_doc:
+    file_id: "1Gz-XuBK6NWpus_mTUAdJS2GBgLdBqbjpnWKYPJAsUoA"
+    url: "https://docs.google.com/document/d/1Gz-XuBK6NWpus_mTUAdJS2GBgLdBqbjpnWKYPJAsUoA/edit"
+    name: "Brag Doc"
+
+github:
+  org: "Rippling"
+  # Repos to search when org-wide results need narrowing (optional)
+  default_repos:
+    - "rippling-main"
+  # GitHub search query; {author} from get_me, {since_date} from week_start or target day
+  pr_search_query: 'author:{author} updated:>={since_date}'
+  pr_search_query_org: 'author:{author} org:{org} updated:>={since_date}'
+  max_results: 30
+  jira_key_pattern: '[A-Z][A-Z0-9]+-\\d+'
+  # Post PR summary comments on linked Jira tickets during PR sync
+  comment_on_linked_tickets: true

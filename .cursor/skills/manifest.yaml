@@ -1,0 +1,132 @@
+# note-bot skill routing manifest
+#
+# Agents: read AGENTS.md, then this file, then the matched skill's SKILL.md.
+
+version: 1
+
+mcp_servers:
+  atlassian: user-atlassian
+  github: user-github
+  gmail: user-gmail
+  google_drive: user-google-drive
+
+config:
+  weekly_notes: weekly-notes/config.yaml
+
+loops:
+
+  update-daily-notes:
+    skill: weekly-notes
+    trigger_phrases:
+      - update weekly report
+      - add to today's notes
+      - log what I did
+      - completed tasks
+      - outstanding tasks
+      - daily notes
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/config.yaml
+    workflow: daily-section
+
+  new-day-section:
+    skill: weekly-notes
+    trigger_phrases:
+      - new day
+      - add section for
+      - today's section
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/reference.md
+    workflow: new-day-section
+
+  meeting-notes:
+    skill: weekly-notes
+    trigger_phrases:
+      - meeting notes
+      - 1:1
+      - meet the team
+      - intro call
+      - sync notes
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/reference.md
+    workflow: child-page-meeting
+
+  handwritten-notes:
+    skill: weekly-notes
+    trigger_phrases:
+      - handwritten
+      - photo of notes
+      - scan notes
+      - OCR
+      - picture of notes
+      - gmail attachment
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/reference.md
+    workflow: image-ocr
+
+  new-weekly-report:
+    skill: weekly-notes
+    trigger_phrases:
+      - new week
+      - new weekly report
+      - start next week
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/config.yaml
+    workflow: new-week
+
+  jira-context:
+    skill: weekly-notes
+    trigger_phrases:
+      - link jira
+      - ticket context
+      - RISK-
+      - CORPSE-
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/reference.md
+    workflow: jira-link
+
+  jira-sync-tickets:
+    skill: weekly-notes
+    trigger_phrases:
+      - sync jira
+      - ticket updates
+      - what did I do in jira
+      - pull from jira
+      - jira activity
+      - update notes from tickets
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/reference.md
+      - weekly-notes/config.yaml
+    workflow: jira-ticket-sync
+
+  brag-doc:
+    skill: weekly-notes
+    trigger_phrases:
+      - brag doc
+      - add to brag doc
+      - career accomplishments
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/config.yaml
+    workflow: brag-doc
+
+  github-pr-sync:
+    skill: weekly-notes
+    trigger_phrases:
+      - sync prs
+      - sync github
+      - my pull requests
+      - pr updates
+      - pull request activity
+      - update notes from prs
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/reference.md
+      - weekly-notes/config.yaml
+    workflow: github-pr-sync
