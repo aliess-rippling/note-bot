@@ -17,15 +17,24 @@ weekly_report:
     week_label_date: "26/07/10" # YY/MM/DD used in title (Friday of work week)
     web_url: "https://rippling.atlassian.net/wiki/spaces/~7120204850b617efd944b9ae686dff14ee52b5/pages/6407750046"
     # Set false after splitting a legacy single-page week into day pages
-    legacy_monolithic: true
-    # One Confluence page per calendar day — populate as day pages are created
-    days: {}
-    # Example after migration:
-    # days:
-    #   "2026-07-08":
-    #     page_id: "6412345678"
-    #     title: "26/07/08 July 8, 2026"
-    #     web_url: "https://rippling.atlassian.net/wiki/spaces/.../pages/6412345678"
+    legacy_monolithic: false
+    days:
+      "2026-07-06":
+        page_id: "6427574401"
+        title: "26/07/06 July 6, 2026"
+        web_url: "https://rippling.atlassian.net/wiki/spaces/~7120204850b617efd944b9ae686dff14ee52b5/pages/6427574401"
+      "2026-07-07":
+        page_id: "6427476070"
+        title: "26/07/07 July 7, 2026"
+        web_url: "https://rippling.atlassian.net/wiki/spaces/~7120204850b617efd944b9ae686dff14ee52b5/pages/6427476070"
+      "2026-07-08":
+        page_id: "6427607151"
+        title: "26/07/08 July 8, 2026"
+        web_url: "https://rippling.atlassian.net/wiki/spaces/~7120204850b617efd944b9ae686dff14ee52b5/pages/6427607151"
+      "2026-07-09":
+        page_id: "6427738185"
+        title: "26/07/09 July 9, 2026"
+        web_url: "https://rippling.atlassian.net/wiki/spaces/~7120204850b617efd944b9ae686dff14ee52b5/pages/6427738185"
 
   naming:
     title_template: "ALiess weekly report {week_label_date}"
