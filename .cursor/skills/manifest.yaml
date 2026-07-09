@@ -9,6 +9,8 @@ mcp_servers:
   github: user-github
   gmail: user-gmail
   google_drive: user-google-drive
+  google_calendar: user-google-calendar
+  rippling: user-rippling-mcp
 
 config:
   weekly_notes: weekly-notes/config.yaml
@@ -51,6 +53,7 @@ loops:
     reads:
       - weekly-notes/SKILL.md
       - weekly-notes/reference.md
+      - weekly-notes/config.yaml
     workflow: child-page-meeting
 
   handwritten-notes:
@@ -130,3 +133,45 @@ loops:
       - weekly-notes/reference.md
       - weekly-notes/config.yaml
     workflow: github-pr-sync
+
+  calendar-meeting-context:
+    skill: weekly-notes
+    trigger_phrases:
+      - check my calendar
+      - calendar context
+      - meeting participants
+      - enrich meeting notes
+      - match calendar event
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/reference.md
+      - weekly-notes/config.yaml
+    workflow: calendar-enrich
+
+  upcoming-meeting-placeholders:
+    skill: weekly-notes
+    trigger_phrases:
+      - upcoming meetings
+      - placeholder pages
+      - prep meeting pages
+      - schedule meeting notes
+      - create meeting pages
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/reference.md
+      - weekly-notes/config.yaml
+    workflow: calendar-placeholders
+
+  rippling-task-sync:
+    skill: weekly-notes
+    trigger_phrases:
+      - sync rippling
+      - rippling tasks
+      - onboarding tasks
+      - completed in rippling
+      - rippling checklist
+    reads:
+      - weekly-notes/SKILL.md
+      - weekly-notes/reference.md
+      - weekly-notes/config.yaml
+    workflow: rippling-task-sync

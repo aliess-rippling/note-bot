@@ -1,6 +1,6 @@
 # note-bot — agent harness
 
-This repo orients agentic harnesses (Cursor, Flue, Pi, CLI agents) around **weekly work notes** stored in Confluence (Atlassian Cloud). Jira, Confluence, GitHub, Gmail, and Google Drive are accessed **only via MCP** — never via browser automation unless the user explicitly asks.
+This repo orients agentic harnesses (Cursor, Flue, Pi, CLI agents) around **weekly work notes** stored in Confluence (Atlassian Cloud). Jira, Confluence, GitHub, Gmail, Google Calendar, Google Drive, and Rippling are accessed **only via MCP** — never via browser automation unless the user explicitly asks.
 
 ## Start here
 
@@ -16,6 +16,8 @@ This repo orients agentic harnesses (Cursor, Flue, Pi, CLI agents) around **week
 | `user-github` | Pull requests authored by you, commits, PR metadata |
 | `user-gmail` | Email search, attachment download for handwritten notes |
 | `user-google-drive` | Google Docs/Drive — Brag Doc, file search, note images |
+| `user-google-calendar` | Calendar events — meeting context, participants, rooms, placeholders |
+| `user-rippling-mcp` | Rippling onboarding/IT/HR tasks via `code` + `ask_ai` |
 
 Authenticate with `mcp_auth` when `STATUS.md` says the server needs it. Always read each tool's JSON schema under the MCP descriptors folder before calling.
 
@@ -30,6 +32,9 @@ Authenticate with `mcp_auth` when `STATUS.md` says the server needs it. Always r
 | Jira ticket context for a note | `weekly-notes` → Jira linking | `config.yaml` |
 | Sync Jira ticket activity into daily notes | `weekly-notes` → Jira ticket sync | `config.yaml` |
 | Sync GitHub PRs into daily notes + Jira comments | `weekly-notes` → GitHub PR sync | `config.yaml` |
+| Enrich meeting notes from calendar (past meetings) | `weekly-notes` → calendar enrich | `config.yaml` |
+| Placeholder child pages for upcoming meetings | `weekly-notes` → calendar placeholders | `config.yaml` |
+| Sync Rippling completed tasks into daily notes | `weekly-notes` → Rippling task sync | `config.yaml` |
 | Brag Doc entry for a completed initiative | `weekly-notes` → brag-doc workflow | `config.yaml` |
 
 Future skills extend [`.cursor/skills/manifest.yaml`](.cursor/skills/manifest.yaml); do not hardcode routing in agent prompts.
@@ -42,3 +47,5 @@ Future skills extend [`.cursor/skills/manifest.yaml`](.cursor/skills/manifest.ya
 - **Transcribe handwriting**: OCR text is required in the page body even when the image is also embedded.
 - **Jira sync**: pull assignee/reporter ticket activity into Completed with inline links; remind about Brag Doc when initiatives hit Done/Resolved.
 - **GitHub PR sync**: pull your PRs into Completed, link PRs and Jira keys, comment on associated tickets when `github.comment_on_linked_tickets` is true.
+- **Calendar**: match events by date/title to enrich meeting pages with participants, duration, and Zoom/physical location; create placeholder pages for upcoming week meetings; skip commuting, vet, and DNS holds.
+- **Rippling sync**: pull completed onboarding/IT/HR tasks via `ask_ai` into Completed; strike through matching Outstanding items.

@@ -3,16 +3,17 @@ name: weekly-notes
 description: >-
   Creates and maintains weekly work reports in Confluence (Atlassian), including
   daily sections, completed/outstanding task lists, child pages for meetings and
-  tasks, Jira ticket sync, GitHub PR sync with linked work summaries and Jira
-  ticket comments, brag-doc reminders on resolved initiatives, handwritten-note
-  OCR from Gmail/Drive/local images, and Google Drive doc access. Use when
-  updating weekly notes, syncing Jira or GitHub activity, daily logs, meeting
-  notes, or transcribing note photos.
+  tasks, Google Calendar context for past and upcoming meetings, Rippling completed-task
+  sync, Jira ticket sync, GitHub PR sync with linked work summaries and Jira ticket comments, brag-doc
+  reminders on resolved initiatives, handwritten-note OCR from Gmail/Drive/local
+  images, and Google Drive doc access. Use when updating weekly notes, syncing
+  calendar meetings, creating meeting placeholders, syncing Rippling or Jira or
+  GitHub activity, daily logs, meeting notes, or transcribing note photos.
 ---
 
 # Weekly Notes (Confluence)
 
-Maintain **ALiess weekly report** pages in the Rippling personal Confluence space. All Atlassian, GitHub, Gmail, and Google Drive access goes through MCP.
+Maintain **ALiess weekly report** pages in the Rippling personal Confluence space. All Atlassian, GitHub, Gmail, Google Calendar, Google Drive, and Rippling access goes through MCP.
 
 ## Quick start
 
@@ -52,7 +53,7 @@ After the first onboarding-style days, prefer this structure under each day:
 
 **Add a new day**: append after the last day's content (do not reorder past days). Copy **Outstanding** items from the previous day into the new day's **Outstanding** unless the user says they are done.
 
-**Update tasks**: edit in place on the correct day. Move items from Outstanding → Completed (with `<s>` on completed sub-items). Link Jira with inline cards: `<a href="https://rippling.atlassian.net/browse/KEY-123" data-card-appearance="inline">...</a>`. Optionally run **Jira ticket sync** or **GitHub PR sync** to backfill Completed.
+**Update tasks**: edit in place on the correct day. Move items from Outstanding → Completed (with `<s>` on completed sub-items). Link Jira with inline cards: `<a href="https://rippling.atlassian.net/browse/KEY-123" data-card-appearance="inline">...</a>`. Optionally run **Rippling task sync**, **Jira ticket sync**, or **GitHub PR sync** to backfill Completed.
 
 **Link child pages** from the daily list: `<a href="https://rippling.atlassian.net/wiki/spaces/.../pages/{id}">Title</a>`.
 
@@ -80,11 +81,121 @@ Use `getConfluencePageDescendants` to avoid duplicates. Link new pages from the 
 
 Fill **Notes** after the call. Keep prep info (role, calendar link) even when notes are empty.
 
+When a calendar match exists, prepend **Meeting details** (see Calendar workflow) before **Notes**.
+
 ### Sync / working-session template
 
 Short bullets, relevant doc links (Confluence cards, Google Docs, external URLs), optional screenshot. Example: `Axl Daniyal gcp logging sync 26/07/08`.
 
 **Create**: `createConfluencePage` with `parentId` = weekly report or task-group page, `spaceId` from config, `contentFormat: html`.
+
+## Google Calendar workflow
+
+MCP server: `user-google-calendar`. Authenticate with `mcp_auth` if needed. Read tool schemas before calling (primary tool: `get_events` with `detailed: true`).
+
+Use calendar to (a) enrich past meeting notes with metadata, and (b) create **placeholder child pages** for upcoming meetings in the current week.
+
+### When to consult calendar
+
+| Trigger | Action |
+|---------|--------|
+| Handwritten note has a **date + title** | `get_events` that day → fuzzy-match title → enrich note |
+| Meeting child page exists, call already happened | Match by title + date → add participants, duration, location |
+| User asks to prep upcoming meetings | `get_events` for the work week → create placeholder pages |
+| New day section / weekly setup | Optionally seed **Outstanding** with linked upcoming meetings |
+
+### Fetch events
+
+Window defaults from `config.yaml`:
+
+- **Single day**: `time_min` / `time_max` = start/end of day in `google_calendar.timezone`
+- **Current work week**: `weekly_report.current.week_start` through that week's Friday (23:59:59)
+
+```
+get_events(calendar_id, time_min, time_max, max_results, detailed: true)
+```
+
+Filter to events where `google_calendar.user_email` is in attendees or the user is organizer.
+
+**Skip events** (do not enrich or create placeholders) when the event `summary` matches any of:
+
+- `skip_title_patterns` — case-insensitive substring (includes `commuting`, `vet`, focus blocks, lunch, OOO)
+- `skip_title_contains` — case-insensitive contains (includes `dns` for personal do-not-schedule holds)
+
+### Match events to notes
+
+Given a candidate **date** and **title** (from handwriting OCR, child page title, or user input):
+
+1. Normalize titles: lowercase, strip punctuation, remove prefixes like `meet the team:`, `intro`, `1:1`, `sync`.
+2. `get_events` for that calendar day.
+3. Score each event: title token overlap + attendee name overlap with note text.
+4. Pick the best match above a reasonable threshold; if ambiguous, ask the user.
+5. If no match, note `[no calendar match]` and continue without inventing metadata.
+
+### Extract meeting metadata
+
+From the matched event record:
+
+| Field | Source | Notes |
+|-------|--------|-------|
+| **Participants** | `attendees` | Names or emails; exclude the user's own email |
+| **Duration** | `start` + `end` | e.g. "30 min" or "2:00–2:30 PM" |
+| **Zoom / video** | `hangoutLink`, `conferenceData`, `description`, `location` | URLs matching `zoom_url_patterns` in config |
+| **Physical room** | `location` | When not a Zoom URL — office, room name, address |
+
+Prefer explicit `location` for physical rooms. When both exist (hybrid), show both.
+
+### Meeting details block (HTML)
+
+Insert at top of meeting child page or under the daily narrative:
+
+```html
+<h2>Meeting details</h2>
+<p><strong>Title:</strong> Axl / Piotr intro call</p>
+<p><strong>When:</strong> <time datetime="2026-07-08T14:00:00-07:00">July 8, 2026 2:00–2:30 PM</time> (30 min)</p>
+<p><strong>Participants:</strong> Piotr Szwajkowski, Axl Liess</p>
+<p><strong>Location:</strong> <a href="https://rippling.zoom.us/j/...">Zoom</a></p>
+<p><strong>Location:</strong> Seattle office — 3W-401</p>
+```
+
+Use one or two **Location** lines (video + physical) as applicable. Omit empty fields.
+
+### Upcoming meeting placeholders
+
+For each **future** event in the current work week that lacks a child page:
+
+1. `getConfluencePageDescendants` on the weekly report — dedupe by similar title + date.
+2. `createConfluencePage` with placeholder body (no notes yet).
+3. Link from that day's **Outstanding** on the weekly report.
+
+**Title** — pick the best fit:
+
+| Event type | Title pattern |
+|------------|---------------|
+| Intro / meet-the-team | `Meet the team: {Person}` (extract person from event title or attendees) |
+| Named sync | `{participants or topic} {YY/MM/DD}` per `sync_meeting_title_template` |
+| Generic | `{event_title} {YY/MM/DD}` |
+
+**Placeholder body**:
+
+```html
+<p><strong>Scheduled:</strong> <time datetime="...">...</time> ({duration})</p>
+<p><strong>Participants:</strong> ...</p>
+<p><strong>Location:</strong> Zoom / physical room (as applicable)</p>
+<p><a href="{htmlLink or hangoutLink}">Open in Google Calendar</a></p>
+<h2>Notes</h2>
+<p></p>
+```
+
+Do not overwrite child pages that already have **Notes** content. Update metadata only when the page is still a placeholder.
+
+### Handwritten notes + calendar
+
+After OCR, if the transcription includes a date and meeting title:
+
+1. Run calendar match for that date/title.
+2. If matched → create or update child page with **Meeting details** + transcribed **Notes**.
+3. If unmatched → add transcription to daily section or child page without fabricated metadata.
 
 ## Handwritten notes / image OCR workflow
 
@@ -120,6 +231,72 @@ Sources (in order of user hint):
    - `body`: first day `<h1>` + empty Completed/Outstanding or user's opening notes
 3. Update `config.yaml` → `weekly_report.current` with new `page_id`, `title`, dates, `web_url`.
 4. Leave prior week's page unchanged (historical record).
+
+## Rippling task sync workflow
+
+Pull **completed Rippling tasks** (onboarding checklist, IT provisioning, HR forms, trainings, action items) into the weekly report **Completed** section. MCP server: `user-rippling-mcp` via the `code` tool and `codemode.*` sandbox.
+
+```
+Task Progress:
+- [ ] Read config.yaml (rippling.completed_tasks_prompt, week_start)
+- [ ] code → codemode.lookup_me (confirm signed-in worker)
+- [ ] code → codemode.ask_ai (completed tasks since week_start)
+- [ ] Poll ask_ai across code calls if status is "running"
+- [ ] Parse task table: title, completion date, category, rippling_url
+- [ ] Match existing Outstanding lines → move to Completed with <s>
+- [ ] Dedupe by task title already on report
+- [ ] updateConfluencePage
+```
+
+### Query completed tasks
+
+Use `rippling.completed_tasks_prompt` with `{since_date}` and `{until_date}` (default: `week_start` → today, or a single target day).
+
+Invoke via `code` tool:
+
+```javascript
+async () => {
+  let res = await codemode.ask_ai({
+    operation: "start",
+    message: "<prompt from config>",
+    idempotency_key: "weekly-notes-" + Date.now(),
+    wait_ms: 0,
+    telemetry: { intent: "Query Rippling for employee tasks completed in the weekly notes sync window." }
+  });
+  if (res.status === "running") {
+    res = await codemode.ask_ai({
+      operation: "poll",
+      run_id: res.run_id,
+      wait_ms: 25000,
+      telemetry: { intent: "Poll Rippling AI for completed task results." }
+    });
+  }
+  return res;
+}
+```
+
+**Polling limits**: at most one `start` + two `poll`s per `code` call (~60s sandbox cap). If still `running`, poll again in a **separate** `code` invocation with the same `run_id`.
+
+**Telemetry**: `extras.telemetry.intent` on the `code` call and each `codemode.*` call must describe the goal **without PII** (no names, emails, or worker IDs in intent strings).
+
+### What to capture
+
+Include tasks from categories in `rippling.task_categories`: onboarding, IT setup (1Password, GitHub, MDM), HR forms, benefits, compliance trainings, reimbursements, and other employee action items visible in Rippling.
+
+### Note format
+
+```html
+<li><p><s>Set up 1password</s> <em>(Rippling onboarding)</em></p></li>
+<li><p><s>AI@ Rippling training</s> — <a href="https://app.rippling.com/...">Rippling</a></p></li>
+```
+
+- Place on the **completion date** from Rippling (correct daily `<h1>` section).
+- If the task already appears in **Outstanding**, strike through and move to **Completed** instead of duplicating.
+- Link `rippling_url` from the ask_ai response when provided; otherwise link `rippling.profile_url` or omit.
+
+### Outstanding sync (optional)
+
+When user asks, run a second `ask_ai` query for **incomplete** onboarding/IT/HR tasks and add missing items to **Outstanding** (do not mark complete).
 
 ## Jira ticket sync workflow
 

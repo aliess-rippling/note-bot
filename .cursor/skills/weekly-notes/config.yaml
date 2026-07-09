@@ -69,3 +69,49 @@ github:
   jira_key_pattern: '[A-Z][A-Z0-9]+-\\d+'
   # Post PR summary comments on linked Jira tickets during PR sync
   comment_on_linked_tickets: true
+
+google_calendar:
+  user_email: "a.liess@rippling.com"
+  calendar_id: "primary"
+  timezone: "America/Los_Angeles"
+  max_results: 100
+  # Substrings (case-insensitive) — skip for placeholders and calendar enrichment
+  skip_title_patterns:
+    - "focus time"
+    - "out of office"
+    - "ooo"
+    - "lunch"
+    - "block"
+    - "busy"
+    - "commuting"
+    - "commute"
+    - "vet"
+  # Additional contains checks (case-insensitive) — e.g. personal DNS hold blocks
+  skip_title_contains:
+    - "dns"
+  zoom_url_patterns:
+    - "zoom.us"
+    - "rippling.zoom.us"
+  placeholder_title_template: "{event_title} {date_suffix}"
+
+rippling:
+  mcp_server: user-rippling-mcp
+  # Primary tool is `code` — sandbox calls codemode.lookup_me and codemode.ask_ai
+  worker_id: "6a1077e331cdd58004dd4e46"
+  profile_url: "https://app.rippling.com/profile/6a1077e331cdd58004dd4e46"
+  # Task categories to include when syncing completed work
+  task_categories:
+    - onboarding
+    - IT
+    - HR
+    - benefits
+    - payroll
+    - compliance
+    - employee action items
+  # ask_ai prompt template — {since_date} and {until_date} substituted
+  completed_tasks_prompt: >-
+    List all tasks I completed in Rippling between {since_date} and {until_date}
+    inclusive: onboarding checklist items, IT provisioning tasks, HR forms,
+    benefits enrollments, compliance trainings, and other employee action items.
+    For each completed task return: title, completion date (YYYY-MM-DD), category,
+    and rippling_url if available. Markdown table only; completed tasks only.
