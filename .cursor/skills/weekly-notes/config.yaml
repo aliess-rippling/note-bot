@@ -126,6 +126,28 @@ google_calendar:
     - "rippling.zoom.us"
   placeholder_title_template: "{event_title} {date_suffix}"
 
+slack:
+  mcp_server: user-slack
+  workspace_url: "https://rippling.slack.com"
+  # Slack search query templates — {since_date} = week_start or target day (YYYY-MM-DD)
+  # Use from:me to find messages you sent; is:thread narrows to thread parents/replies in threads
+  my_messages_query: "from:me after:{since_date}"
+  my_thread_messages_query: "from:me is:thread after:{since_date}"
+  max_search_results: 20
+  # When true, use slack_search_public_and_private (DMs + private channels); requires user consent
+  include_private_channels: true
+  # Case-insensitive channel name substrings to skip (noise / social channels)
+  skip_channel_patterns:
+    - "random"
+    - "watercooler"
+    - "social"
+  # Skip threads where your only message is shorter than this (chars) and has no replies
+  min_message_length: 15
+  # Create a child page when a thread has more than this many messages (parent + replies)
+  child_page_threshold_messages: 10
+  # Completed-line prefix for Slack-sourced items (agent may omit for very short notes)
+  completed_label: "Slack"
+
 rippling:
   mcp_server: user-rippling-mcp
   # Primary tool is `code` — sandbox calls codemode.lookup_me and codemode.ask_ai

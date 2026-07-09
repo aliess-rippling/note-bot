@@ -5,16 +5,17 @@ description: >-
   lightweight week hub plus one page per calendar day, with completed/outstanding
   task lists and child pages for meetings and tasks under each day, Google Calendar
   context for past and upcoming meetings, Rippling completed-task sync, Jira ticket
-  sync, GitHub PR sync with linked work summaries and Jira ticket comments, brag-doc
-  reminders on resolved initiatives, handwritten-note OCR from Gmail/Drive/local
-  images, and Google Drive doc access. Use when updating weekly notes, syncing
-  calendar meetings, creating meeting placeholders, syncing Rippling or Jira or
-  GitHub activity, daily logs, meeting notes, or transcribing note photos.
+  sync, GitHub PR sync with linked work summaries and Jira ticket comments, Slack
+  thread and channel message sync with summaries, brag-doc reminders on resolved
+  initiatives, handwritten-note OCR from Gmail/Drive/local images, and Google Drive
+  doc access. Use when updating weekly notes, syncing calendar meetings, creating
+  meeting placeholders, syncing Rippling or Jira or GitHub or Slack activity, daily
+  logs, meeting notes, or transcribing note photos.
 ---
 
 # Weekly Notes (Confluence)
 
-Maintain **ALiess weekly report** week hubs and **one Confluence page per calendar day** in the Rippling personal space. All Atlassian, GitHub, Gmail, Google Calendar, Google Drive, and Rippling access goes through MCP.
+Maintain **ALiess weekly report** week hubs and **one Confluence page per calendar day** in the Rippling personal space. All Atlassian, GitHub, Gmail, Google Calendar, Google Drive, Rippling, and Slack access goes through MCP.
 
 ## Quick start
 
@@ -103,7 +104,7 @@ When creating a day page, **always roll forward Outstanding** from the **immedia
 
 Skip roll-forward only when the user explicitly says prior Outstanding is cleared or not applicable.
 
-**Update tasks**: `getConfluencePage` + `updateConfluencePage` on the **target day page** only. Move items from Outstanding → Completed (with `<s>` on completed sub-items). Link Jira with inline cards: `<a href="https://rippling.atlassian.net/browse/KEY-123" data-card-appearance="inline">...</a>`. Optionally run **Rippling task sync**, **Jira ticket sync**, or **GitHub PR sync** to backfill Completed.
+**Update tasks**: `getConfluencePage` + `updateConfluencePage` on the **target day page** only. Move items from Outstanding → Completed (with `<s>` on completed sub-items). Link Jira with inline cards: `<a href="https://rippling.atlassian.net/browse/KEY-123" data-card-appearance="inline">...</a>`. Optionally run **Rippling task sync**, **Jira ticket sync**, **GitHub PR sync**, or **Slack thread sync** to backfill Completed.
 
 **Link child pages** from the day's Completed or Outstanding: `<a href="https://rippling.atlassian.net/wiki/spaces/.../pages/{id}">Title</a>`.
 
@@ -542,6 +543,105 @@ For each linked ticket:
 ### Brag doc (merged PRs)
 
 When a PR is **merged** in the sync window and links to a Jira issue whose type is in `jira.brag_doc_issue_types`, include the standard brag-doc reminder (especially if the ticket also moved to Done/Resolved).
+
+## Slack thread sync workflow
+
+Pull **your** Slack messages and **threads you participated in** for the sync window, summarize substantive discussions, and add lines to the matching **day page(s)** **Completed** section (or child pages for long threads). MCP server: `user-slack`. Authenticate with `mcp_auth` if needed.
+
+```
+Task Progress:
+- [ ] Read config.yaml (slack search templates, skip_channel_patterns, week_start)
+- [ ] Resolve day page(s) for the sync window
+- [ ] slack_read_user_profile → confirm current user / user_id
+- [ ] Search your messages since since_date (public + private per config)
+- [ ] Group hits by thread (thread_ts) or standalone message
+- [ ] slack_read_thread for each thread needing full context
+- [ ] Summarize decisions, asks, and outcomes (1–3 sentences)
+- [ ] Dedupe against Slack permalinks already on target day page(s)
+- [ ] Append Completed lines (or create child page for long threads)
+- [ ] updateConfluencePage (one day page per call)
+```
+
+### Scope: what to include
+
+Sync window: `since_date` from `weekly_report.current.week_start` unless syncing a single day (use that day's `YYYY-MM-DD`).
+
+| Source | How to find |
+|--------|-------------|
+| **Messages you sent** to channels | `slack.my_messages_query` with `{since_date}` substituted |
+| **Threads you participated in** | Same search — replies you sent appear as `from:me`; group by `thread_ts` |
+| **Thread parents you started** | Optional second pass: `slack.my_thread_messages_query` |
+
+**Search tool selection** (from `slack.include_private_channels`):
+
+| `include_private_channels` | Tool | Notes |
+|------------------------------|------|-------|
+| `true` (default) | `slack_search_public_and_private` | DMs, private channels, MPIMs — **ask user consent** before first private search in a session |
+| `false` | `slack_search_public` | Public channels only; no consent prompt |
+
+Pass `sort: "timestamp"`, `sort_dir: "desc"`, `limit` ≤ `slack.max_search_results`, `include_context: false` on search calls to keep payloads small. Paginate with `cursor` when the window has many hits.
+
+### Group and read threads
+
+For each search result where you authored a message in the sync window:
+
+1. **Thread** (`thread_ts` present and ≠ `ts`): use `(channel_id, thread_ts)` as the group key. Call `slack_read_thread` with `channel_id` and `message_ts` = parent `thread_ts` (or the parent `ts` from the hit).
+2. **Standalone channel message** (no `thread_ts`): group by `(channel_id, ts)`.
+3. **DM / group DM**: same grouping; channel_id may be a DM channel or user_id.
+
+Skip when:
+
+- Channel name matches any `slack.skip_channel_patterns` substring (case-insensitive).
+- Your only contribution is trivial (shorter than `slack.min_message_length` chars, no replies, no decisions) — e.g. "thanks", "+1", emoji-only.
+- The thread permalink or `(channel_id, thread_ts)` already appears on the target day page.
+
+### What to summarize
+
+For each included thread or substantive standalone message, write a **work-focused** summary from (priority order):
+
+1. **Your messages** — what you asked, proposed, decided, or committed to.
+2. **Thread context** — key replies from others that change the outcome (decisions, blockers, owners).
+3. **Action items** — if a clear ★-worthy follow-up emerges, add to **Outstanding** on that day page (see **Starred lines = tasks**); do not duplicate if already listed.
+
+Omit: banter, pure acknowledgments, bot notifications unless you materially responded.
+
+Map each item to the **calendar day of your latest message** in that thread during the sync window (timezone: `google_calendar.timezone`).
+
+### Note format
+
+Short thread → **Completed** bullet on the matching day page:
+
+```html
+<li><p>Aligned with SecEng on GCP logging export scope for CORPSE-97 — <em>(Slack #corpsec-engineering)</em> <a href="https://rippling.slack.com/archives/C01234567/p1234567890123456?thread_ts=1234567890.123456&amp;cid=C01234567">thread</a></p></li>
+```
+
+Standalone channel message (no thread):
+
+```html
+<li><p>Posted BQ export design update to #data-platform — <em>(Slack)</em> <a href="https://rippling.slack.com/archives/C01234567/p1234567890123456">message</a></p></li>
+```
+
+**Permalink**: prefer `permalink` from search/thread results. If missing, build from `slack.workspace_url`:
+
+```
+{workspace_url}/archives/{channel_id}/p{ts_without_dot}
+```
+
+Append `?thread_ts={parent_ts}&cid={channel_id}` for threaded links.
+
+Dedupe by permalink or `(channel_id, thread_ts)` already on the day page. If a line exists for the same thread, **update** the summary instead of duplicating.
+
+### Long threads → child page
+
+When `slack_read_thread` returns more than `slack.child_page_threshold_messages` messages, or the summary needs more than ~2 short paragraphs:
+
+1. `createConfluencePage` under the **day page** — title: `{channel_name} slack {date_suffix}` or first line of parent message (truncated).
+2. Body: TOC + **Context** (channel, participants, link to Slack thread) + **Summary** bullets + optional **Your messages** excerpt.
+3. Link from **Completed**: `Discussed GCP logging sync in <a href="{child_page_url}">Slack thread</a> (<a href="{slack_permalink}">Slack</a>)`.
+
+### Private content
+
+Do not paste secrets, credentials, or PII into Confluence beyond what is already normal for your work notes. When a thread is sensitive (HR, personal), summarize at a high level or skip unless the user explicitly asks to include it.
 
 ## Jira linking (manual)
 

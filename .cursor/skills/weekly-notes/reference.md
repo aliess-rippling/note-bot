@@ -264,6 +264,46 @@ Added Terraform for BQ export tables and GCS buckets.
 
 Post via `addCommentToJiraIssue` with `contentFormat: markdown`. Skip if the PR URL already appears in recent comments.
 
+### Slack (user-slack)
+
+| Task | Tool |
+|------|------|
+| Current user / user_id | `slack_read_user_profile` |
+| Search your messages (public) | `slack_search_public` |
+| Search your messages (incl. DMs / private) | `slack_search_public_and_private` — ask user consent first |
+| Read full thread | `slack_read_thread` — `channel_id` + parent `message_ts` |
+| Read channel history | `slack_read_channel` |
+| Find channel by name | `slack_search_channels` |
+| Auth | `mcp_auth` |
+
+Read tool schemas under `mcps/user-slack/tools/` before calling.
+
+**Search examples** (substitute date from `week_start` or target day):
+
+```
+from:me after:2026-07-06
+from:me is:thread after:2026-07-06
+from:me in:#corpsec-engineering after:2026-07-09
+```
+
+Use `sort: "timestamp"`, `sort_dir: "desc"`, `include_context: false`, `limit` ≤ `slack.max_search_results`.
+
+When `slack.include_private_channels` is `true`, prefer `slack_search_public_and_private` so DMs and private channels are included.
+
+### Slack thread sync — completed line template
+
+```html
+<li><p>Aligned with SecEng on GCP logging export scope — <em>(Slack #corpsec-engineering)</em> <a href="https://rippling.slack.com/archives/C01234567/p1234567890123456?thread_ts=1234567890.123456&amp;cid=C01234567">thread</a></p></li>
+```
+
+### Slack permalink (when not returned by API)
+
+```
+{slack.workspace_url}/archives/{channel_id}/p{ts_with_dot_removed}
+```
+
+Thread query suffix: `?thread_ts={parent_ts}&cid={channel_id}`
+
 ### Jira key extraction
 
 Scan PR title, body, head branch, and commit messages for keys matching:
@@ -473,6 +513,20 @@ from:me has:attachment newer_than:3d
 - [ ] `addCommentToJiraIssue` on linked tickets (deduped by PR URL in comments)
 - [ ] Did not transition/close tickets without explicit user request
 - [ ] Brag doc reminder for merged PRs tied to initiative tickets
+
+## Slack thread sync checklist
+
+- [ ] `slack_read_user_profile` → confirmed current user
+- [ ] User consent obtained before `slack_search_public_and_private` when `include_private_channels: true`
+- [ ] Searched `from:me after:{since_date}` (and optional `is:thread` pass)
+- [ ] Grouped hits by `(channel_id, thread_ts)`; called `slack_read_thread` for full context
+- [ ] Skipped noise channels (`skip_channel_patterns`) and trivial one-liners
+- [ ] Summarized decisions, asks, and outcomes; routed ★ follow-ups to **Outstanding**
+- [ ] Mapped each item to day by latest user message timestamp (`google_calendar.timezone`)
+- [ ] Deduped Slack permalinks on target day page(s)
+- [ ] Added Completed lines with channel context + Slack link
+- [ ] Created child page for threads over `child_page_threshold_messages`
+- [ ] Did not paste secrets or sensitive PII into Confluence
 
 ## Jira sync checklist
 
