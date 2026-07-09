@@ -348,6 +348,54 @@ title ~ "26/07/08" AND space = "~7120204850b617efd944b9ae686dff14ee52b5"
 
 Do not copy `data-id` to new images; only preserve when editing fetched content.
 
+### Table of contents (new pages)
+
+Prepend to every `createConfluencePage` body (from `config.yaml` → `page_layout.toc_macro_html`):
+
+```html
+<div data-type="extension" data-extension-key="toc" data-extension-type="com.atlassian.confluence.macro.core" data-parameters="{&quot;outline&quot;:true,&quot;maxLevel&quot;:3}"></div>
+```
+
+Weekly report example (new week):
+
+```html
+<div data-type="extension" data-extension-key="toc" ...></div>
+<h1><time datetime="2026-07-06">July 6, 2026</time></h1>
+<h2>Completed</h2>
+<ul></ul>
+<h2>Outstanding</h2>
+<ul></ul>
+```
+
+Child page example:
+
+```html
+<div data-type="extension" data-extension-key="toc" ...></div>
+<h2>Meeting details</h2>
+...
+<h2>Notes</h2>
+<p></p>
+```
+
+### Roll forward Outstanding (new day)
+
+When adding July 10 after July 9 — copy July 9's `<ul>` under **Outstanding** into July 10's **Outstanding** (skip `<s>` items):
+
+```html
+<h1><time datetime="2026-07-10">July 10, 2026</time></h1>
+<h2>Completed</h2>
+<ul></ul>
+<h2>Outstanding</h2>
+<ul>
+  <li><p>Set up cursor w/ mcp</p></li>
+  <li><p>review on boarding doc</p>
+    <ul>
+      <li><p>start planning/documenting project work</p></li>
+    </ul>
+  </li>
+</ul>
+```
+
 ## Page hierarchy (example week)
 
 ```

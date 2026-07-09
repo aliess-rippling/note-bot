@@ -43,6 +43,8 @@ Future skills extend [`.cursor/skills/manifest.yaml`](.cursor/skills/manifest.ya
 
 - **Fetch before write**: always `getConfluencePage` (HTML) and note `version.number` before `updateConfluencePage`.
 - **Preserve structure**: keep existing `data-local-id` attributes when editing fetched HTML.
+- **Table of contents**: every new Confluence page starts with a TOC at the top; add to legacy pages on next edit.
+- **New day**: roll forward the previous day's **Outstanding** list (exclude struck-through items).
 - **Child pages** for long meeting or task threads; keep the weekly report scannable with links.
 - **Transcribe handwriting**: OCR text is required in the page body even when the image is also embedded.
 - **Jira sync**: pull assignee/reporter ticket activity into Completed with inline links; remind about Brag Doc when initiatives hit Done/Resolved.

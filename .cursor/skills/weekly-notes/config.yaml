@@ -36,6 +36,11 @@ child_pages:
   meeting_title_template: "Meet the team: {person_name}"
   sync_meeting_title_template: "{participants} {topic} {date_suffix}"
 
+page_layout:
+  include_toc: true
+  # Confluence TOC macro — prepended to every new page body
+  toc_macro_html: '<div data-type="extension" data-extension-key="toc" data-extension-type="com.atlassian.confluence.macro.core" data-parameters="{&quot;outline&quot;:true,&quot;maxLevel&quot;:3}"></div>'
+
 jira:
   user_email: "a.liess@rippling.com"
   # JQL: {since_date} = weekly_report.current.week_start or start of day being synced

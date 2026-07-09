@@ -51,7 +51,18 @@ After the first onboarding-style days, prefer this structure under each day:
 | Done | `<h2>Completed</h2>` | Bullet list; strike through with `<s>` when done |
 | Open | `<h2>Outstanding</h2>` | Nested `<ul>` for subtasks |
 
-**Add a new day**: append after the last day's content (do not reorder past days). Copy **Outstanding** items from the previous day into the new day's **Outstanding** unless the user says they are done.
+### Add a new day (required)
+
+When adding a new daily `<h1>`, **always roll forward Outstanding** from the **immediately previous day**:
+
+1. `getConfluencePage` → find the prior day's `<h2>Outstanding</h2>` and its `<ul>` (including nested sub-items).
+2. **Copy** that list into the new day's **Outstanding** — full tree, same wording and links.
+3. **Omit** any line that is struck through with `<s>` (treat as done).
+4. Leave the **previous day's** Outstanding unchanged (historical snapshot).
+5. Append the new `<h1>` after the last day; do not reorder earlier days.
+6. Add new tasks below the copied list; do not duplicate items already copied.
+
+Skip roll-forward only when the user explicitly says prior Outstanding is cleared or not applicable.
 
 **Update tasks**: edit in place on the correct day. Move items from Outstanding → Completed (with `<s>` on completed sub-items). Link Jira with inline cards: `<a href="https://rippling.atlassian.net/browse/KEY-123" data-card-appearance="inline">...</a>`. Optionally run **Rippling task sync**, **Jira ticket sync**, or **GitHub PR sync** to backfill Completed.
 
@@ -90,6 +101,7 @@ Use `getConfluencePageDescendants` to avoid duplicates. Link new pages from the 
 ### Meet-the-team template
 
 ```html
+<div data-type="extension" data-extension-key="toc" data-extension-type="com.atlassian.confluence.macro.core" data-parameters="{&quot;outline&quot;:true,&quot;maxLevel&quot;:3}"></div>
 <p><strong>Role:</strong> …</p>
 <p><strong>Can help with:</strong> …</p>
 <p><a href="https://calendar.google.com/calendar/render?action=TEMPLATE&amp;text=...">📅 Schedule meeting with {Name}</a></p>
@@ -105,7 +117,7 @@ When a calendar match exists, prepend **Meeting details** (see Calendar workflow
 
 Short bullets, relevant doc links (Confluence cards, Google Docs, external URLs), optional screenshot. Example: `Axl Daniyal gcp logging sync 26/07/08`. Starred bullets in **Notes** → also add to daily **Outstanding**.
 
-**Create**: `createConfluencePage` with `parentId` = weekly report or task-group page, `spaceId` from config, `contentFormat: html`.
+**Create**: `createConfluencePage` with `parentId` = weekly report or task-group page, `spaceId` from config, `contentFormat: html`. Start the body with a **table of contents** (see Page layout below).
 
 ## Google Calendar workflow
 
@@ -197,6 +209,7 @@ For each **future** event in the current work week that lacks a child page:
 **Placeholder body**:
 
 ```html
+<div data-type="extension" data-extension-key="toc" data-extension-type="com.atlassian.confluence.macro.core" data-parameters="{&quot;outline&quot;:true,&quot;maxLevel&quot;:3}"></div>
 <p><strong>Scheduled:</strong> <time datetime="...">...</time> ({duration})</p>
 <p><strong>Participants:</strong> ...</p>
 <p><strong>Location:</strong> Zoom / physical room (as applicable)</p>
@@ -248,7 +261,7 @@ Sources (in order of user hint):
    - `title`: `ALiess weekly report {week_label_date}`
    - `parentId`: `reports_parent_folder_id` from config
    - `spaceId`: from config
-   - `body`: first day `<h1>` + empty Completed/Outstanding or user's opening notes
+   - `body`: **TOC macro** + first day `<h1>` + empty Completed/Outstanding or user's opening notes
 3. Update `config.yaml` → `weekly_report.current` with new `page_id`, `title`, dates, `web_url`.
 4. Leave prior week's page unchanged (historical record).
 
@@ -465,6 +478,29 @@ When a PR is **merged** in the sync window and links to a Jira issue whose type 
 - Preserve all `data-local-id` values from the fetched HTML.
 - Set `versionMessage` to a short description of the edit.
 - On validation errors, fix HTML nesting per tool error text and retry.
+
+### Page layout: table of contents
+
+Every **new** Confluence page (`createConfluencePage`) must begin with a **table of contents** at the top, before other content.
+
+**Weekly report** — TOC lists day sections (`<h1>`) and updates as days are added:
+
+```html
+<div data-type="extension" data-extension-key="toc" data-extension-type="com.atlassian.confluence.macro.core" data-parameters="{&quot;outline&quot;:true,&quot;maxLevel&quot;:3}"></div>
+```
+
+**Child pages** (meetings, task groups, sync notes) — same TOC macro at top; it indexes **Meeting details**, **Notes**, and other `<h2>` sections.
+
+If the TOC macro is rejected by Confluence HTML validation, use a manual fallback:
+
+```html
+<h2>Contents</h2>
+<ul>
+  <li>July 9, 2026</li>
+</ul>
+```
+
+On **existing** pages missing a TOC, add the macro (or manual list) at the top on the next edit. When adding a new day to the weekly report, ensure the TOC block remains the first element in the body.
 
 ## Google Drive & Brag Doc
 
