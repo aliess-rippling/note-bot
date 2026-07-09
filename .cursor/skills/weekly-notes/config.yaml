@@ -25,6 +25,8 @@ handwritten_notes:
   local_image_dirs:
     - "~/Pictures/weekly-notes"
     - "~/Downloads"
+  # Star beside a line = open task → Outstanding (handwriting + meeting Notes)
+  star_means_task: true
   gmail_search_hints:
     - "has:attachment filename:jpg OR filename:jpeg OR filename:png"
     - "subject:notes OR subject:weekly"

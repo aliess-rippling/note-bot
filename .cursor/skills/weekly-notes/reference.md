@@ -205,8 +205,10 @@ Examples:
 <p><strong>Participants:</strong> Daniyal Ahmad, Axl Liess</p>
 <p><strong>Location:</strong> <a href="https://rippling.zoom.us/j/123">Zoom</a></p>
 <h2>Notes</h2>
-<p>big query export discussion…</p>
+<p>★ follow up on default GCP permission groups</p>
 ```
+
+Starred line → also add `★ follow up on default GCP permission groups` to that day's **Outstanding** on the weekly report.
 
 ### Upcoming placeholder HTML
 
@@ -414,6 +416,7 @@ from:me has:attachment newer_than:3d
 ## OCR quality checklist
 
 - [ ] Transcription added to Confluence (not image-only)
+- [ ] Starred lines (★ / *) in handwriting or meeting **Notes** routed to **Outstanding**
 - [ ] Uncertain words marked or noted
 - [ ] Section placement matches user intent (daily vs child page)
 - [ ] Links to Jira/Confluence/Docs/Calendar added where references exist

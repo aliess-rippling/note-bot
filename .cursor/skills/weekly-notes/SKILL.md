@@ -57,6 +57,24 @@ After the first onboarding-style days, prefer this structure under each day:
 
 **Link child pages** from the daily list: `<a href="https://rippling.atlassian.net/wiki/spaces/.../pages/{id}">Title</a>`.
 
+## Starred lines = tasks
+
+A **star** (★, `*`, or a clear star doodle) beside a line marks an **open task** — in handwriting, on a meeting child page, or anywhere in notes.
+
+| Where the star appears | What to do |
+|------------------------|------------|
+| Weekly report / daily scratch pad | Add line to that day's **Outstanding** |
+| Meeting child page **Notes** | Keep starred line in **Notes** *and* add the task to the day's **Outstanding** on the weekly report |
+| Handwritten page (OCR) | Same as above; route starred lines to **Outstanding** |
+
+Rules:
+
+- Do **not** put starred lines in **Completed** unless the user says the task is done.
+- Preserve the star when transcribing, e.g. `★ follow up on GCP default permission groups`.
+- Dedupe: if the task is already in **Outstanding**, do not add again.
+- Optional context on Outstanding: prefix with meeting name or link to the child page, e.g. `★ (Piotr intro) send doc link`.
+- Unstarred lines are narrative, decisions, or links — not tasks unless the user says otherwise.
+
 ## Child page workflows
 
 ### When to create a child page
@@ -79,13 +97,13 @@ Use `getConfluencePageDescendants` to avoid duplicates. Link new pages from the 
 <p></p>
 ```
 
-Fill **Notes** after the call. Keep prep info (role, calendar link) even when notes are empty.
+Fill **Notes** after the call. Keep prep info (role, calendar link) even when notes are empty. Apply **Starred lines = tasks** for any ★ in **Notes**.
 
 When a calendar match exists, prepend **Meeting details** (see Calendar workflow) before **Notes**.
 
 ### Sync / working-session template
 
-Short bullets, relevant doc links (Confluence cards, Google Docs, external URLs), optional screenshot. Example: `Axl Daniyal gcp logging sync 26/07/08`.
+Short bullets, relevant doc links (Confluence cards, Google Docs, external URLs), optional screenshot. Example: `Axl Daniyal gcp logging sync 26/07/08`. Starred bullets in **Notes** → also add to daily **Outstanding**.
 
 **Create**: `createConfluencePage` with `parentId` = weekly report or task-group page, `spaceId` from config, `contentFormat: html`.
 
@@ -210,12 +228,14 @@ Sources (in order of user hint):
 1. Open the image with the Read tool (vision) or decode base64 to a temp file then Read.
 2. Transcribe faithfully; mark illegible spans as `[illegible]`.
 3. Structure as headings/bullets matching the handwriting.
+4. Apply **Starred lines = tasks** for any starred lines.
 
 **Publish**:
 
 | User request | Action |
 |--------------|--------|
 | Short note | Add transcribed text under today's `<h1>` on the weekly report |
+| Starred task line | Add to **Outstanding** for that day (see **Starred lines = tasks**) |
 | Long or multi-topic | Create child page; link from daily section |
 | User wants image preserved | Add transcription under a `## Transcription` or `## Notes` heading; embed image if possible (see below) |
 
