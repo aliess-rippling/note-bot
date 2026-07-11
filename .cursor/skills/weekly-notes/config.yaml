@@ -35,6 +35,10 @@ weekly_report:
         page_id: "6427738185"
         title: "26/07/09 July 9, 2026"
         web_url: "https://rippling.atlassian.net/wiki/spaces/~7120204850b617efd944b9ae686dff14ee52b5/pages/6427738185"
+      "2026-07-10":
+        page_id: "6429605922"
+        title: "26/07/10 July 10, 2026"
+        web_url: "https://rippling.atlassian.net/wiki/spaces/~7120204850b617efd944b9ae686dff14ee52b5/pages/6429605922"
 
   naming:
     title_template: "ALiess weekly report {week_label_date}"
