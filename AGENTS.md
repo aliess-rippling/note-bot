@@ -57,3 +57,39 @@ Future skills extend [`.cursor/skills/manifest.yaml`](.cursor/skills/manifest.ya
 - **Calendar**: match events by date/title to enrich meeting pages with participants, duration, and Zoom/physical location; create placeholder pages for upcoming week meetings; skip commuting, vet, and DNS holds.
 - **Rippling sync**: pull completed onboarding/IT/HR tasks via `ask_ai` into Completed; strike through matching Outstanding items.
 - **Slack sync**: pull your channel messages and threads you participated in, summarize substantive discussions, and add to Completed with Slack permalinks; long threads → child pages under the day page.
+
+## Cursor Cloud specific instructions
+
+This repo is an **agent skill harness**, not a conventional app. There is no `package.json`, Docker stack, lint/test suite, or local server. “Running” means: load skills from `.cursor/skills/`, read `config.yaml`, and call authenticated MCP tools.
+
+### What to run
+
+| Goal | How |
+|------|-----|
+| Route work | `AGENTS.md` → `.cursor/skills/manifest.yaml` → matched `SKILL.md` |
+| Site IDs | `.cursor/skills/weekly-notes/config.yaml` (`cloud_id`, hub/day `page_id`s) |
+| Tool shapes | `.cursor/skills/weekly-notes/reference.md` |
+| Lint / unit tests / `dev` server | N/A — none in-repo |
+| Sanity check | Parse YAML (`manifest.yaml`, `config.yaml`); exercise MCP reads/writes below |
+
+### MCP server IDs in Cloud Agents
+
+`manifest.yaml` uses ids like `user-atlassian`. In Cursor Cloud the live server names are typically **`Atlassian`**, **`Github`**, **`Slack`**, **`Google Drive`** (no `user-` prefix). Discover with `GetMcpTools` before calling.
+
+**Automations** must attach required MCP servers under Automation → Tools. The daily new-day cron needs **Atlassian** at minimum.
+
+| Capability | Cloud status (as of env setup) |
+|------------|--------------------------------|
+| Atlassian Confluence **read** (`getConfluencePage`, CQL, descendants) | Works when MCP attached |
+| Atlassian Confluence **write** (`updateConfluencePage`, `createConfluencePage`) | **Not exposed** on the Cloud Atlassian MCP binding — day-page creates/updates are blocked until those tools appear |
+| Atlassian Jira read/write (search, comments, transitions) | Works (Jira comment write verified) |
+| GitHub | Works |
+| Slack | Works (`slack_search_public_and_private` for DMs/private; prefer public when enough) |
+| Google Drive | Works (Brag Doc readable) |
+| Gmail / Google Calendar / Rippling | Often **not** attached in Cloud — skip those skill loops or ask the user to enable the MCP servers |
+
+### Non-obvious gotchas
+
+- Always `getConfluencePage` with `contentFormat: html` and note `version.number` before any update; never dump the full week hub into an update payload.
+- If `config.yaml` is missing a day that already exists under the hub, resolve via `getConfluencePageDescendants` and record `page_id` / `web_url` in `weekly_report.current.days`.
+- No dependency install step is required on startup; the update script only asserts skill files are present.
